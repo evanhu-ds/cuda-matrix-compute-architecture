@@ -72,3 +72,78 @@ extern "C" void gpu_matrix_multiply(float *h_A, float *h_B, float *h_C, int N) {
     cudaFree(d_B);
     cudaFree(d_C);
 }
+
+
+__global__ void convolution2D_GPU(
+    unsigned char *image,
+    int *kernel,
+    int *output,
+    int width,
+    int height,
+    int K
+) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) return;
+
+    int half = K / 2;
+    int sum = 0;
+
+    for (int ky = -half; ky <= half; ky++) {
+        for (int kx = -half; kx <= half; kx++) {
+            int ix = x + kx;
+            int iy = y + ky;
+
+            if (ix >= 0 && ix < width && iy >= 0 && iy < height) {
+                int pixel = image[iy * width + ix];
+                int weight = kernel[(ky + half) * K + (kx + half)];
+                sum += pixel * weight;
+            }
+        }
+    }
+
+    output[y * width + x] = sum;
+}
+
+extern "C" void gpu_convolution(
+    unsigned char *h_image,
+    int *h_kernel,
+    int *h_output,
+    int width,
+    int height,
+    int K
+) {
+    unsigned char *d_image;
+    int *d_kernel;
+    int *d_output;
+
+    size_t img_size = width * height * sizeof(unsigned char);
+    size_t kernel_size = K * K * sizeof(int);
+    size_t out_size = width * height * sizeof(int);
+
+    cudaMalloc(&d_image, img_size);
+    cudaMalloc(&d_kernel, kernel_size);
+    cudaMalloc(&d_output, out_size);
+
+    cudaMemcpy(d_image, h_image, img_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_kernel, h_kernel, kernel_size, cudaMemcpyHostToDevice);
+
+    dim3 threads(16, 16);
+    dim3 blocks(
+        (width + 15) / 16,
+        (height + 15) / 16
+    );
+
+    convolution2D_GPU<<<blocks, threads>>>(
+        d_image, d_kernel, d_output,
+        width, height, K
+    );
+    cudaDeviceSynchronize();
+
+    cudaMemcpy(h_output, d_output, out_size, cudaMemcpyDeviceToHost);
+
+    cudaFree(d_image);
+    cudaFree(d_kernel);
+    cudaFree(d_output);
+}
