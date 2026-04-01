@@ -78,7 +78,7 @@ This project explores performance engineering in practice: beginning with a naï
 ## How to Run
 
 ### CPU
-Compile and run baseline program in the `cpu/` directory:
+From the `cpu/` directory, compile and run the baseline program:
 
 ```
 gcc matrix_cpu.c -o matrix_cpu
@@ -88,6 +88,7 @@ gcc matrix_cpu.c -o matrix_cpu
 ```
 
 ### GPU (CUDA)
+From the `gpu_cuda/` directory, compile and run the CUDA implementations.
 
 **1. Naïve CUDA**
 
